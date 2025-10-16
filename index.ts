@@ -1,7 +1,8 @@
 import express from "express";
 import { chromium, devices } from "playwright";
 import { networkInterfaces } from "os";
-import { forwardToVM } from "./forwardingConfig"; // Import the forwarding logic
+import { forwardToVM } from "./forwardingConfig";
+import path from "path";
 
 const app = express();
 const PORT = 3000;
@@ -22,6 +23,11 @@ app.use((req, res, next) => {
 });
 
 app.use(express.static("public"));
+
+// Serve index.html directly
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
 // Test endpoint
 app.get("/api/test", (req, res) => {
@@ -73,6 +79,34 @@ app.get("/api/status/:sessionId", (req, res) => {
   }
 
   res.json(session);
+});
+
+// Forward tokens to VM (called from frontend)
+app.post("/api/forward", async (req, res) => {
+  try {
+    const { vmUrl, pAuthorization, uid, jwt } = req.body;
+
+    if (!vmUrl) {
+      return res.status(400).json({ error: "VM URL required" });
+    }
+
+    if (!pAuthorization || !uid) {
+      return res.status(400).json({ error: "Missing pAuthorization or uid" });
+    }
+
+    console.log("🚀 Forwarding to VM:", vmUrl);
+
+    const result = await forwardToVM(vmUrl, pAuthorization, uid, jwt);
+
+    if (result.success) {
+      res.json({ success: true, vmUsed: vmUrl });
+    } else {
+      res.status(400).json({ success: false, error: result.error });
+    }
+  } catch (error: any) {
+    console.error("❌ Forward error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 async function runExtraction(sessionId: string, username: string, password: string, game: string) {
@@ -362,16 +396,15 @@ async function runExtraction(sessionId: string, username: string, password: stri
 
     console.log(`🎰 Navigating to ${game}...`);
     await page.goto(gameUrl, {
-  waitUntil: "domcontentloaded",
-  timeout: 60000,
-});
+      waitUntil: "domcontentloaded",
+      timeout: 60000,
+    });
 
     // Wait for game to load and select "amigos" variant
     console.log("🎮 Looking for 'amigos' game variant...");
     await page.waitForTimeout(3000);
     
     try {
-      // Try multiple selectors to find and click "amigos"
       const amigosSelectors = [
         'button:has-text("amigos")',
         'button:has-text("Amigos")',
@@ -432,36 +465,17 @@ async function runExtraction(sessionId: string, username: string, password: stri
       throw new Error("Failed to capture WebSocket credentials (pAuthorization or uid missing)");
     }
 
-    // Forward to VM using the routing logic
-    console.log("\n🚀 Forwarding to VM...");
-    const forwardResult = await forwardToVM(
-      username,
-      game,
-      pAuthorization,
-      uid,
-      jwtCookie?.value
-    );
-
-    // Update session with results
+    // Update session with results - now frontend can trigger forwarding
     sessions.set(sessionId, {
       status: "completed",
       data: {
         jwt: jwtCookie?.value || null,
         pAuthorization,
         uid,
-        forwarded: forwardResult.success,
-        vmUsed: forwardResult.vmUsed,
-        forwardError: forwardResult.error || null,
       },
     });
 
-    if (forwardResult.success) {
-      console.log(`✅ Successfully forwarded to ${forwardResult.vmUsed}`);
-    } else {
-      console.error(`❌ Failed to forward: ${forwardResult.error}`);
-    }
-
-    console.log("✅ Done! Browser closes in 5 seconds...");
+    console.log("✅ Extraction complete! Browser closes in 5 seconds...");
     await page.waitForTimeout(5000);
     await browser.close();
     
@@ -498,19 +512,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📍 Network:  http://${localIp}:${PORT}`);
   console.log("=".repeat(60));
   console.log("💡 Share the Network URL with users on same WiFi");
-  console.log("💡 VM routing configured in forwardingConfig.ts");
   console.log("=".repeat(60) + "\n");
-});
-
-
-
-import path from "path";
-
-// ...existing imports and setup...
-
-app.use(express.static("public"));
-
-// Serve index.html directly
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
 });

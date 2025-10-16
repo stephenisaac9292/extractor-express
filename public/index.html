@@ -16,11 +16,12 @@
       <ol>
         <li>Enter your MSport login credentials</li>
         <li>Click "Start Extraction"</li>
-        <li>The system will log in automatically</li>
-        <li>Your tokens will appear below</li>
+        <li>Wait for the tokens to appear</li>
+        <li>Optionally forward them to your VM</li>
       </ol>
     </div>
 
+    <!-- Extraction Form -->
     <form id="extractForm">
       <div class="form-group">
         <label for="game">Select Game</label>
@@ -61,13 +62,34 @@
       <button type="submit" class="btn" id="extractBtn">Start Extraction</button>
     </form>
 
+    <!-- Extraction Feedback -->
     <div id="statusContainer"></div>
     <div id="resultContainer"></div>
+
+    <!-- Forwarding Section -->
+    <div class="forward-section" style="margin-top: 2rem;">
+      <h2>Forward Tokens to VM</h2>
+      <form id="forwardForm">
+        <div class="form-group">
+          <label for="vmUrl">VM URL</label>
+          <input
+            type="text"
+            id="vmUrl"
+            name="vmUrl"
+            placeholder="http://192.168.1.105:4000/api/receive"
+            required
+          />
+        </div>
+        <button type="submit" class="btn" id="forwardBtn" disabled>Forward Tokens</button>
+      </form>
+      <div id="forwardStatus"></div>
+    </div>
   </div>
 
   <script>
     let sessionId = null;
     let pollInterval = null;
+    let extractedData = null; // holds last extracted tokens
 
     function togglePassword() {
       const input = document.getElementById("password");
@@ -86,11 +108,13 @@
       const btn = document.getElementById("extractBtn");
       const status = document.getElementById("statusContainer");
       const result = document.getElementById("resultContainer");
+      const forwardBtn = document.getElementById("forwardBtn");
       const username = document.getElementById("username").value;
       const password = document.getElementById("password").value;
       const game = document.getElementById("game").value;
 
       btn.disabled = true;
+      forwardBtn.disabled = true;
       result.innerHTML = "";
       status.innerHTML = `
         <div class="status pending">
@@ -132,13 +156,16 @@
         const status = document.getElementById("statusContainer");
         const result = document.getElementById("resultContainer");
         const btn = document.getElementById("extractBtn");
+        const forwardBtn = document.getElementById("forwardBtn");
 
         if (data.status === "completed") {
           clearInterval(pollInterval);
           btn.disabled = false;
+          forwardBtn.disabled = false;
+
+          extractedData = data.data; // store tokens
 
           status.innerHTML = `<div class="status completed">Extraction completed successfully</div>`;
-
           result.innerHTML = `
             <div class="result">
               <div class="result-item">
@@ -160,6 +187,45 @@
         console.error("Polling error:", err);
       }
     }
+
+    // 🟢 Forwarding logic
+    document.getElementById("forwardForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const forwardBtn = document.getElementById("forwardBtn");
+      const forwardStatus = document.getElementById("forwardStatus");
+      const vmUrl = document.getElementById("vmUrl").value;
+
+      if (!extractedData) {
+        return alert("No extracted tokens available. Run extraction first.");
+      }
+
+      forwardBtn.disabled = true;
+      forwardStatus.innerHTML = `<div class="status pending"><div class="spinner"></div>Forwarding to VM...</div>`;
+
+      try {
+        const res = await fetch("/api/forward", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vmUrl,
+            pAuthorization: extractedData.pAuthorization,
+            uid: extractedData.uid,
+            jwt: extractedData.jwt || null,
+          }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          forwardStatus.innerHTML = `<div class="status completed">✅ Forwarded successfully to ${data.vmUsed}</div>`;
+        } else {
+          forwardStatus.innerHTML = `<div class="status error">❌ Failed: ${data.error}</div>`;
+        }
+      } catch (err) {
+        forwardStatus.innerHTML = `<div class="status error">❌ ${err.message}</div>`;
+      } finally {
+        forwardBtn.disabled = false;
+      }
+    });
   </script>
 </body>
 </html>
