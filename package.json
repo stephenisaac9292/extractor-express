@@ -1,0 +1,20 @@
+{
+  "name": "msport-express",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "dev": "bun run index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "playwright": "^1.56.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.8.0",
+    "typescript": "^5.6.3"
+  }
+}
