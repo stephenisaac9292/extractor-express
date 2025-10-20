@@ -84,19 +84,23 @@ app.get("/api/status/:sessionId", (req, res) => {
 // Forward tokens to VM (called from frontend)
 app.post("/api/forward", async (req, res) => {
   try {
-    const { vmUrl, pAuthorization, uid, jwt } = req.body;
+    const { vmUrl, pAuthorization, game } = req.body;
 
     if (!vmUrl) {
       return res.status(400).json({ error: "VM URL required" });
     }
 
-    if (!pAuthorization || !uid) {
-      return res.status(400).json({ error: "Missing pAuthorization or uid" });
+    if (!pAuthorization) {
+      return res.status(400).json({ error: "Missing pAuthorization" });
+    }
+
+    if (!game) {
+      return res.status(400).json({ error: "Missing game selection" });
     }
 
     console.log("🚀 Forwarding to VM:", vmUrl);
 
-    const result = await forwardToVM(vmUrl, pAuthorization, uid, jwt);
+    const result = await forwardToVM(vmUrl, pAuthorization, game);
 
     if (result.success) {
       res.json({ success: true, vmUsed: vmUrl });
@@ -115,7 +119,8 @@ async function runExtraction(sessionId: string, username: string, password: stri
   // Game URL mapping
   const gameUrls: { [key: string]: string } = {
     madpunch: "https://www.msport.com/ng/casino/madpunch",
-    superkick: "https://www.msport.com/ng/casino/superkick"
+    superkick: "https://www.msport.com/ng/casino/superkick",
+    skyace: "https://www.msport.com/ng/casino/skyace"
   };
 
   const gameUrl = gameUrls[game];
@@ -146,7 +151,6 @@ async function runExtraction(sessionId: string, username: string, password: stri
   await client.send("Network.enable");
 
   let pAuthorization = "";
-  let uid = "";
   let loginSuccessful = false;
 
   // Capture WebSocket
@@ -155,15 +159,10 @@ async function runExtraction(sessionId: string, username: string, password: stri
     console.log("🔌 WebSocket created:", url);
 
     const pAuthMatch = url.match(/[?&]pAuthorization=([^&]+)/);
-    const uidMatch = url.match(/[?&]uid=([^&]+)/);
 
     if (pAuthMatch?.[1]) {
       pAuthorization = pAuthMatch[1];
       console.log("✅ Captured pAuthorization!");
-    }
-    if (uidMatch?.[1]) {
-      uid = uidMatch[1];
-      console.log("✅ Captured uid!");
     }
   });
 
@@ -173,9 +172,7 @@ async function runExtraction(sessionId: string, username: string, password: stri
     if (url.includes("wss://")) {
       console.log("🔍 Found WebSocket URL:", url.substring(0, 100) + "...");
       const pAuthMatch = url.match(/[?&]pAuthorization=([^&]+)/);
-      const uidMatch = url.match(/[?&]uid=([^&]+)/);
       if (pAuthMatch?.[1]) pAuthorization = pAuthMatch[1];
-      if (uidMatch?.[1]) uid = uidMatch[1];
     }
   });
 
@@ -442,36 +439,29 @@ async function runExtraction(sessionId: string, username: string, password: stri
     // Wait for WebSocket
     console.log("⏳ Waiting for WebSocket data...");
     let wsAttempts = 0;
-    while ((!pAuthorization || !uid) && wsAttempts < 900) {
+    while (!pAuthorization && wsAttempts < 900) {
       wsAttempts++;
       await page.waitForTimeout(100);
       if (wsAttempts % 50 === 0)
         console.log(`   Still waiting... (${wsAttempts / 10}s)`);
     }
 
-    const cookies = await context.cookies();
-    const jwtCookie = cookies.find((c) => c.name === "accessToken");
-
     console.log("\n" + "=".repeat(60));
     console.log("🎯 EXTRACTED DATA:");
     console.log("=".repeat(60));
-    console.log("\n📦 JWT (accessToken):", jwtCookie?.value ?? "❌ Not found");
     console.log("\n🔑 pAuthorization:", pAuthorization || "❌ Not captured");
-    console.log("\n👤 UID:", uid || "❌ Not captured");
     console.log("\n" + "=".repeat(60));
 
     // Validate we have the required data
-    if (!pAuthorization || !uid) {
-      throw new Error("Failed to capture WebSocket credentials (pAuthorization or uid missing)");
+    if (!pAuthorization) {
+      throw new Error("Failed to capture WebSocket credentials (pAuthorization missing)");
     }
 
-    // Update session with results - now frontend can trigger forwarding
+    // Update session with results
     sessions.set(sessionId, {
       status: "completed",
       data: {
-        jwt: jwtCookie?.value || null,
         pAuthorization,
-        uid,
       },
     });
 

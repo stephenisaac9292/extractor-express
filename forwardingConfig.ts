@@ -3,27 +3,32 @@ import fetch from "node-fetch";
 export async function forwardToVM(
   vmUrl: string,
   pAuthorization: string,
-  uid: string,
-  jwt?: string | null
+  game: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (!vmUrl) {
       return { success: false, error: "VM URL missing" };
     }
 
+    if (!pAuthorization) {
+      return { success: false, error: "pAuthorization missing" };
+    }
+
+    if (!game) {
+      return { success: false, error: "Game type missing" };
+    }
+
     console.log("🚀 Sending to VM:", vmUrl);
 
     const payload = {
       pAuthorization,
-      uid,
-      jwt: jwt || null,
+      game,
       timestamp: new Date().toISOString(),
     };
 
     console.log("📤 Payload:", {
       pAuthorization: pAuthorization.substring(0, 20) + "...",
-      uid,
-      jwt: jwt ? jwt.substring(0, 20) + "..." : null,
+      game,
       timestamp: payload.timestamp,
     });
 

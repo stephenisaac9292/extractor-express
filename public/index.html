@@ -29,6 +29,7 @@
           <option value="">Choose a game...</option>
           <option value="madpunch">Mad Punch</option>
           <option value="superkick">Super Kick</option>
+          <option value="skyace">Sky Ace</option>
         </select>
       </div>
 
@@ -90,6 +91,7 @@
     let sessionId = null;
     let pollInterval = null;
     let extractedData = null; // holds last extracted tokens
+    let selectedGame = null; // store game selection
 
     function togglePassword() {
       const input = document.getElementById("password");
@@ -112,6 +114,8 @@
       const username = document.getElementById("username").value;
       const password = document.getElementById("password").value;
       const game = document.getElementById("game").value;
+
+      selectedGame = game; // store for forwarding
 
       btn.disabled = true;
       forwardBtn.disabled = true;
@@ -172,10 +176,6 @@
                 <div class="result-label">pAuthorization</div>
                 <div class="result-value">${data.data.pAuthorization || "Not found"}</div>
               </div>
-              <div class="result-item">
-                <div class="result-label">UID</div>
-                <div class="result-value">${data.data.uid || "Not found"}</div>
-              </div>
             </div>
           `;
         } else if (data.status === "error") {
@@ -199,6 +199,10 @@
         return alert("No extracted tokens available. Run extraction first.");
       }
 
+      if (!selectedGame) {
+        return alert("Game selection not found. Please extract again.");
+      }
+
       forwardBtn.disabled = true;
       forwardStatus.innerHTML = `<div class="status pending"><div class="spinner"></div>Forwarding to VM...</div>`;
 
@@ -209,8 +213,7 @@
           body: JSON.stringify({
             vmUrl,
             pAuthorization: extractedData.pAuthorization,
-            uid: extractedData.uid,
-            jwt: extractedData.jwt || null,
+            game: selectedGame,
           }),
         });
         const data = await res.json();
