@@ -84,7 +84,7 @@ app.get("/api/status/:sessionId", (req, res) => {
 // Forward tokens to VM (called from frontend)
 app.post("/api/forward", async (req, res) => {
   try {
-    const { vmUrl, pAuthorization, game } = req.body;
+    const { vmUrl, pAuthorization, game, vmUsername } = req.body;
 
     if (!vmUrl) {
       return res.status(400).json({ error: "VM URL required" });
@@ -98,9 +98,13 @@ app.post("/api/forward", async (req, res) => {
       return res.status(400).json({ error: "Missing game selection" });
     }
 
+    if (!vmUsername) {
+      return res.status(400).json({ error: "Missing username" });
+    }
+
     console.log("🚀 Forwarding to VM:", vmUrl);
 
-    const result = await forwardToVM(vmUrl, pAuthorization, game);
+    const result = await forwardToVM(vmUrl, pAuthorization, game, vmUsername);
 
     if (result.success) {
       res.json({ success: true, vmUsed: vmUrl });

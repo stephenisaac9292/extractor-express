@@ -72,12 +72,22 @@
       <h2>Forward Tokens to VM</h2>
       <form id="forwardForm">
         <div class="form-group">
+          <label for="vmUsername">VM Username</label>
+          <input
+            type="text"
+            id="vmUsername"
+            name="vmUsername"
+            placeholder="Enter your username"
+            required
+          />
+        </div>
+        <div class="form-group">
           <label for="vmUrl">VM URL</label>
           <input
             type="text"
             id="vmUrl"
             name="vmUrl"
-            placeholder="http://192.168.1.105:4000/api/receive"
+            placeholder="http://192.168.1.105:8080"
             required
           />
         </div>
@@ -194,6 +204,7 @@
       const forwardBtn = document.getElementById("forwardBtn");
       const forwardStatus = document.getElementById("forwardStatus");
       const vmUrl = document.getElementById("vmUrl").value;
+      const vmUsername = document.getElementById("vmUsername").value;
 
       if (!extractedData) {
         return alert("No extracted tokens available. Run extraction first.");
@@ -212,6 +223,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             vmUrl,
+            vmUsername,
             pAuthorization: extractedData.pAuthorization,
             game: selectedGame,
           }),
