@@ -124,7 +124,7 @@ async function runExtraction(sessionId: string, username: string, password: stri
   const gameUrls: { [key: string]: string } = {
     madpunch: "https://www.msport.com/ng/casino/madpunch",
     superkick: "https://www.msport.com/ng/casino/superkick",
-    skyace: "https://www.msport.com/ng/casino/skyace"
+    skyace: "https://www.msport.com/ng/casino/sky-ace"
   };
 
   const gameUrl = gameUrls[game];
